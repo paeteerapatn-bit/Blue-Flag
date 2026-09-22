@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจัดการตำแหน่งร้านฟ้า (Shop Location Dashboard)</title>
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Google Fonts & Font Awesome Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Sarabun', sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background-color: #f4f6f9;
+      color: #333;
+    }
+
+    /* Top Navigation Bar */
+    header {
+      background: #1e88e5;
+      color: white;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      z-index: 1001;
+    }
+
+    header h1 {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 10px;
+    }
+
+    .tab-btn {
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover, .tab-btn.active {
+      background: white;
+      color: #1e88e5;
+    }
+
+    /* Main Container Views */
+    .view-content {
+      display: none;
+      flex-grow: 1;
+      height: calc(100vh - 53px);
+      overflow: hidden;
+    }
+
+    .view-content.active {
+      display: flex;
+    }
+
+    /* === View 1: Map View Layout === */
+    #sidebar {
+      width: 360px;
+      background: #ffffff;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .form-container {
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    button.btn {
+      padding: 9px 12px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+
+    .btn-submit { background: #1e88e5; color: white; flex: 1; }
+    .btn-submit:hover { background: #1565c0; }
+    .btn-cancel { background: #e0e0e0; color: #333; }
+    .btn-export-geo { background: #4caf50; color: white; width: 100%; margin-top: 10px; }
+
+    .shop-list-container {
+      padding: 15px 20px;
+      flex-grow: 1;
+    }
+
+    .shop-card {
+      background: #f8f9fa;
+      border-left: 4px solid #1e88e5;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .shop-info h4 { font-size: 0.95rem; color: #1565c0; }
+    .shop-info p { font-size: 0.8rem; color: #666; }
+    .shop-actions i { cursor: pointer; margin-left: 10px; color: #666; }
+    .shop-actions i.fa-edit:hover { color: #1e88e5; }
+    .shop-actions i.fa-trash:hover { color: #e53935; }
+
+    #map { flex-grow: 1; height: 100%; }
+
+    /* === View 2: Table View Layout === */
+    #table-view {
+      flex-direction: column;
+      padding: 20px;
+      background: #f4f6f9;
+      overflow-y: auto;
+      width: 100%;
+    }
+
+    .table-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      padding: 20px;
+    }
+
+    .table-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 10px;
+      flex: 1;
+      max-width: 400px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    .btn-export-csv {
+      background: #2e7d32;
+      color: white;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    th {
+      background-color: #f8f9fa;
+      color: #1e88e5;
+      font-weight: 600;
+    }
+
+    tr:hover { background-color: #f1f5f9; }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .status-open { background: #e8f5e9; color: #2e7d32; }
+    .status-close { background: #ffebee; color: #c62828; }
+    .status-plan { background: #e3f2fd; color: #1565c0; }
+
+    @media (max-width: 768px) {
+      .view-content.active { flex-direction: column-reverse; }
+      #sidebar { width: 100%; height: 50vh; }
+      #map { height: 50vh; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Navigation -->
+  <header>
+    <h1><i class="fa-solid fa-store"></i> ระบบจัดการตำแหน่งร้านฟ้า</h1>
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchView('map-view', this)"><i class="fa-solid fa-map"></i> มุมมองแผนที่</button>
+      <button class="tab-btn" onclick="switchView('table-view', this)"><i class="fa-solid fa-table"></i> ตารางข้อมูลทั้งหมด (<span id="tab-count">0</span>)</button>
+    </div>
+  </header>
+
+  <!-- View 1: แผนที่ + Sidebar -->
+  <div id="map-view" class="view-content active">
+    <div id="sidebar">
+      <div class="form-container">
+        <h3 id="form-title" style="margin-bottom: 12px; font-size: 1.05rem;">เพิ่ม/แก้ไข ข้อมูลร้านค้า</h3>
+        <form id="shop-form">
+          <input type="hidden" id="shop-id">
+          <div class="form-group">
+            <label>ชื่อร้านค้า / สาขา</label>
+            <input type="text" id="shop-name" placeholder="เช่น ร้านฟ้า สาขาเมือง" required>
+          </div>
+          <div class="form-group">
+            <label>สถานะ</label>
+            <select id="shop-status">
+              <option value="เปิดให้บริการ">เปิดให้บริการ</option>
+              <option value="ปิดปรับปรุง">ปิดปรับปรุง</option>
+              <option value="เตรียมเปิดสาขา">เตรียมเปิดสาขา</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>พิกัด ละติจูด (Lat)</label>
+            <input type="number" step="any" id="shop-lat" placeholder="คลิกบนแผนที่เพื่อระบุพิกัด" required>
+          </div>
+          <div class="form-group">
+            <label>พิกัด ลองจิจูด (Long)</label>
+            <input type="number" step="any" id="shop-lng" placeholder="คลิกบนแผนที่เพื่อระบุพิกัด" required>
+          </div>
+          <div class="btn-group">
+            <button type="submit" class="btn btn-submit" id="btn-save">บันทึกข้อมูล</button>
+            <button type="button" class="btn btn-cancel" onclick="resetForm()">ยกเลิก</button>
+          </div>
+        </form>
+        <button class="btn btn-export-geo" onclick="exportGeoJSON()"><i class="fa-solid fa-file-code"></i> ส่งออก GeoJSON</button>
+      </div>
+
+      <div class="shop-list-container">
+        <h3 style="margin-bottom: 10px; font-size: 1rem;">รายการร้านค้าล่าสุด</h3>
+        <div id="shop-list"></div>
+      </div>
+    </div>
+
+    <div id="map"></div>
+  </div>
+
+  <!-- View 2: ตารางแสดงข้อมูลทั้งหมด -->
+  <div id="table-view" class="view-content">
+    <div class="table-card">
+      <div class="table-toolbar">
+        <div class="search-box">
+          <input type="text" id="search-input" onkeyup="filterTable()" placeholder="ค้นหาชื่อร้านค้า หรือสถานะ...">
+        </div>
+        <button class="btn btn-export-csv" onclick="exportCSV()"><i class="fa-solid fa-file-excel"></i> ส่งออกข้อมูลเป็น Excel (CSV)</button>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table id="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>ชื่อร้านค้า / สาขา</th>
+              <th>สถานะ</th>
+              <th>ละติจูด (Lat)</th>
+              <th>ลองจิจูด (Long)</th>
+              <th>การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <!-- Data Rows Render Here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 1. ตั้งค่าแผนที่และ Base Map Layers
+    const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' });
+    const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { attribution: '&copy; Google Maps' });
+    const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: '&copy; Google Maps' });
+
+    const map = L.map('map', {
+      center: [13.7563, 100.5018],
+      zoom: 6,
+      layers: [googleHybrid]
+    });
+
+    const baseMaps = {
+      "ภาพดาวเทียม + ชื่อถนน (Hybrid)": googleHybrid,
+      "ภาพดาวเทียมอย่างเดียว (Satellite)": googleSatellite,
+      "แผนที่ถนน (Street Map)": streetLayer
+    };
+    L.control.layers(baseMaps).addTo(map);
+
+    // 2. ข้อมูลร้านค้า (ดึงจาก LocalStorage)
+    let shops = JSON.parse(localStorage.getItem('blue_shops')) || [
+      { id: '1', name: 'ร้านฟ้า สาขาใหญ่', status: 'เปิดให้บริการ', lat: 13.7563, lng: 100.5018 },
+      { id: '2', name: 'ร้านฟ้า สาขาพัทลุง', status: 'เปิดให้บริการ', lat: 7.6167, lng: 100.0833 },
+      { id: '3', name: 'ร้านฟ้า สาขาปราจีนบุรี', status: 'เตรียมเปิดสาขา', lat: 14.0509, lng: 101.3711 }
+    ];
+    let markers = {};
+
+    // 3. ฟังก์ชันสลับหน้าต่าง View
+    function switchView(viewId, btnElement) {
+      document.querySelectorAll('.view-content').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      
+      document.getElementById(viewId).classList.add('active');
+      btnElement.classList.add('active');
+
+      if (viewId === 'map-view') {
+        setTimeout(() => map.invalidateSize(), 200); // Re-render map tiles
+      }
+    }
+
+    // 4. แสดงผลข้อมูลทั้งบนแผนที่และในตาราง
+    function renderAll() {
+      // Clear markers
+      Object.values(markers).forEach(m => map.removeLayer(m));
+      markers = {};
+
+      const listContainer = document.getElementById('shop-list');
+      const tableBody = document.getElementById('table-body');
+      
+      listContainer.innerHTML = '';
+      tableBody.innerHTML = '';
+
+      document.getElementById('tab-count').innerText = shops.length;
+
+      shops.forEach((shop, index) => {
+        // --- Render Map Marker ---
+        const marker = L.marker([shop.lat, shop.lng]).addTo(map);
+        marker.bindPopup(`<b>${shop.name}</b><br>สถานะ: ${shop.status}<br>พิกัด: ${shop.lat}, ${shop.lng}`);
+        markers[shop.id] = marker;
+
+        // --- Render Sidebar List ---
+        const card = document.createElement('div');
+        card.className = 'shop-card';
+        card.innerHTML = `
+          <div class="shop-info" onclick="zoomToShop(${shop.lat}, ${shop.lng}, '${shop.id}')" style="cursor:pointer;">
+            <h4>${shop.name}</h4>
+            <p>${shop.status} | ${shop.lat}, ${shop.lng}</p>
+          </div>
+          <div class="shop-actions">
+            <i class="fa-solid fa-edit" onclick="editShop('${shop.id}')"></i>
+            <i class="fa-solid fa-trash" onclick="deleteShop('${shop.id}')"></i>
+          </div>
+        `;
+        listContainer.appendChild(card);
+
+        // --- Render Data Table Row ---
+        let badgeClass = 'status-open';
+        if (shop.status === 'ปิดปรับปรุง') badgeClass = 'status-close';
+        if (shop.status === 'เตรียมเปิดสาขา') badgeClass = 'status-plan';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${index + 1}</td>
+          <td><strong>${shop.name}</strong></td>
+          <td><span class="status-badge ${badgeClass}">${shop.status}</span></td>
+          <td>${shop.lat}</td>
+          <td>${shop.lng}</td>
+          <td>
+            <button class="btn btn-submit" style="padding: 4px 8px; font-size: 0.75rem;" onclick="locateOnMap(${shop.lat}, ${shop.lng}, '${shop.id}')"><i class="fa-solid fa-location-dot"></i> ดูแผนที่</button>
+            <i class="fa-solid fa-edit" style="cursor:pointer; margin: 0 8px; color: #1e88e5;" onclick="editShop('${shop.id}')"></i>
+            <i class="fa-solid fa-trash" style="cursor:pointer; color: #e53935;" onclick="deleteShop('${shop.id}')"></i>
+          </td>
+        `;
+        tableBody.appendChild(tr);
+      });
+
+      localStorage.setItem('blue_shops', JSON.stringify(shops));
+    }
+
+    // 5. บันทึก / แก้ไขข้อมูล
+    document.getElementById('shop-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const id = document.getElementById('shop-id').value;
+      const name = document.getElementById('shop-name').value;
+      const status = document.getElementById('shop-status').value;
+      const lat = parseFloat(document.getElementById('shop-lat').value);
+      const lng = parseFloat(document.getElementById('shop-lng').value);
+
+      if (id) {
+        const index = shops.findIndex(s => s.id === id);
+        shops[index] = { id, name, status, lat, lng };
+      } else {
+        shops.push({ id: Date.now().toString(), name, status, lat, lng });
+      }
+
+      renderAll();
+      resetForm();
+    });
+
+    function editShop(id) {
+      const shop = shops.find(s => s.id === id);
+      if (shop) {
+        document.getElementById('shop-id').value = shop.id;
+        document.getElementById('shop-name').value = shop.name;
+        document.getElementById('shop-status').value = shop.status;
+        document.getElementById('shop-lat').value = shop.lat;
+        document.getElementById('shop-lng').value = shop.lng;
+        document.getElementById('form-title').innerText = 'แก้ไขข้อมูลร้านค้า';
+        
+        // สลับไปหน้าแผนที่เพื่อแสดงจุด
+        switchView('map-view', document.querySelectorAll('.tab-btn')[0]);
+        zoomToShop(shop.lat, shop.lng, shop.id);
+      }
+    }
+
+    function deleteShop(id) {
+      if (confirm('คุณต้องการลบรายการร้านค้านี้ใช่หรือไม่?')) {
+        shops = shops.filter(s => s.id !== id);
+        renderAll();
+      }
+    }
+
+    function zoomToShop(lat, lng, id) {
+      map.setView([lat, lng], 16);
+      if (markers[id]) markers[id].openPopup();
+    }
+
+    function locateOnMap(lat, lng, id) {
+      switchView('map-view', document.querySelectorAll('.tab-btn')[0]);
+      zoomToShop(lat, lng, id);
+    }
+
+    function resetForm() {
+      document.getElementById('shop-form').reset();
+      document.getElementById('shop-id').value = '';
+      document.getElementById('form-title').innerText = 'เพิ่ม/แก้ไข ข้อมูลร้านค้า';
+    }
+
+    // คลิกบนแผนที่เพื่อดึงพิกัด
+    map.on('click', function(e) {
+      document.getElementById('shop-lat').value = e.latlng.lat.toFixed(6);
+      document.getElementById('shop-lng').value = e.latlng.lng.toFixed(6);
+    });
+
+    // 6. การค้นหาข้อมูลในตาราง
+    function filterTable() {
+      const input = document.getElementById("search-input").value.toLowerCase();
+      const rows = document.getElementById("table-body").getElementsByTagName("tr");
+
+      for (let row of rows) {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(input) ? "" : "none";
+      }
+    }
+
+    // 7. Export ข้อมูลเป็นไฟล์ CSV (เปิดด้วย Excel ได้)
+    function exportCSV() {
+      let csv = "\uFEFFลำดับ,ชื่อร้านค้า,สถานะ,ละติจูด,ลองจิจูด\n";
+      shops.forEach((shop, index) => {
+        csv += `${index + 1},"${shop.name}","${shop.status}",${shop.lat},${shop.lng}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute("download", "รายชื่อร้านฟ้าทั้งหมด.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Export GeoJSON
+    function exportGeoJSON() {
+      const geojson = {
+        type: "FeatureCollection",
+        features: shops.map(shop => ({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [shop.lng, shop.lat] },
+          properties: { name: shop.name, status: shop.status }
+        }))
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(geojson, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "blue_shops.geojson");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    // เริ่มการทำงาน
+    renderAll();
+  </script>
+</body>
+</html>
