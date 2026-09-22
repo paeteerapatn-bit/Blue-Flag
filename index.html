@@ -261,7 +261,7 @@
           <input type="hidden" id="shop-id">
           <div class="form-group">
             <label>ชื่อร้านค้า / สาขา</label>
-            <input type="text" id="shop-name" placeholder="เช่น ร้านฟ้า สาขาเมือง" required>
+            <input type="text" id="shop-name" placeholder="เช่น ร้านธงฟ้า สาขาเมือง" required>
           </div>
           <div class="form-group">
             <label>สถานะ</label>
@@ -511,7 +511,7 @@
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.setAttribute("download", "รายชื่อร้านฟ้าทั้งหมด.csv");
+      link.setAttribute("download", "รายชื่อร้านธงฟ้าทั้งหมด.csv");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
